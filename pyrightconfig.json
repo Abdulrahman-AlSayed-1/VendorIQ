@@ -1,0 +1,11 @@
+{
+  "include": [
+    "src"
+  ],
+  "extraPaths": [
+    "src",
+    ".venv/lib/python3.13/site-packages"
+  ],
+  "venvPath": ".",
+  "venv": ".venv"
+}
