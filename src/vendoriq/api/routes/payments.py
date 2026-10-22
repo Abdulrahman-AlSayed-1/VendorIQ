@@ -21,6 +21,7 @@ async def get_payment_status(
     session: SessionDep,
 ) -> PaymentRead:
     """Retrieve authoritative database payment status for an order (IDOR protected)."""
-    return await order_service.get_payment_by_id(
+    payment = await order_service.get_payment_by_id(
         session=session, payment_id=payment_id, user=current_user
     )
+    return PaymentRead.model_validate(payment)

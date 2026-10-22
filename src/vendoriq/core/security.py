@@ -36,7 +36,7 @@ def create_access_token(
         expire = now + timedelta(minutes=60)
 
     to_encode: dict[str, Any] = {
-        "sub": str(subject),
+        "sub": subject,
         "iat": now,
         "exp": expire,
     }
