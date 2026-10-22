@@ -85,7 +85,13 @@ uv run python -m vendoriq.scripts.seed
 * **Default Admin**: `admin@vendoriq.local` / `AdminSecure123!`
 * **Default Customer**: `customer@vendoriq.local` / `CustomerPass123!`
 
-### 3.6 Start the API Server
+### 3.6 Periodic Reservation Reconciler (Optional / Cron)
+Release abandoned checkout reservations older than 30 minutes:
+```bash
+uv run python -m vendoriq.scripts.reconcile
+```
+
+### 3.7 Start the API Server
 ```bash
 uv run uvicorn vendoriq.main:app --reload --port 8000
 ```
