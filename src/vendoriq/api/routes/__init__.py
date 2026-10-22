@@ -5,9 +5,11 @@ from vendoriq.api.routes import (
     auth,
     cart,
     categories,
+    checkout,
     health,
     products,
     users,
+    webhooks,
 )
 
 api_router = APIRouter()
@@ -18,6 +20,8 @@ api_router.include_router(users.router)
 api_router.include_router(categories.router)
 api_router.include_router(products.router)
 api_router.include_router(cart.router)
+api_router.include_router(checkout.router)
+api_router.include_router(webhooks.router)
 api_router.include_router(admin.router)
 
 __all__ = ["api_router"]
