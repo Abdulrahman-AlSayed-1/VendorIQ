@@ -1,15 +1,24 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from vendoriq.api.deps import CurrentAdminDep, SessionDep
+from vendoriq.models.order import OrderStatus
 from vendoriq.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
+from vendoriq.schemas.order import (
+    OrderPaginationResponse,
+    OrderRead,
+    OrderStatusUpdate,
+)
 from vendoriq.schemas.product import (
     ProductCreate,
     ProductRead,
     ProductStockUpdate,
     ProductUpdate,
 )
+from vendoriq.services.inventory_service import inventory_service
+from vendoriq.services.order_service import order_service
 from vendoriq.services.product_service import product_service
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
@@ -115,3 +124,73 @@ async def deactivate_product(
     return await product_service.deactivate_product(
         session=session, product_id=product_id
     )
+
+
+# -----------------------------------------------------------------------------
+# Admin Order & Inventory Management
+# -----------------------------------------------------------------------------
+@router.get(
+    "/orders",
+    response_model=OrderPaginationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List all customer orders with filters (Admin only)",
+)
+async def list_orders_admin(
+    session: SessionDep,
+    _admin: CurrentAdminDep,
+    order_status: Annotated[
+        OrderStatus | None,
+        Query(description="Filter by order status"),
+    ] = None,
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 20,
+) -> OrderPaginationResponse:
+    orders, total, total_pages = await order_service.get_all_orders_admin(
+        session=session,
+        status_filter=order_status,
+        page=page,
+        page_size=page_size,
+    )
+    return OrderPaginationResponse(
+        items=orders,  # type: ignore[arg-type]
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.patch(
+    "/orders/{order_id}/status",
+    response_model=OrderRead,
+    status_code=status.HTTP_200_OK,
+    summary="Update order fulfillment status (Admin only)",
+)
+async def update_order_status_admin(
+    order_id: uuid.UUID,
+    data: OrderStatusUpdate,
+    session: SessionDep,
+    _admin: CurrentAdminDep,
+) -> OrderRead:
+    return await order_service.update_order_status_admin(
+        session=session, order_id=order_id, new_status=data.status
+    )
+
+
+@router.post(
+    "/orders/reconcile-expired",
+    status_code=status.HTTP_200_OK,
+    summary="Reconcile and release expired unpaid checkout reservations (Admin only)",
+)
+async def reconcile_expired_orders(
+    session: SessionDep,
+    _admin: CurrentAdminDep,
+):
+    cancelled_ids = await inventory_service.reconcile_expired_reservations(
+        session=session
+    )
+    return {
+        "status": "success",
+        "cancelled_orders_count": len(cancelled_ids),
+        "cancelled_order_ids": [str(oid) for oid in cancelled_ids],
+    }
