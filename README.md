@@ -1,4 +1,4 @@
-# VendorIQ — E-commerce Backend with Stripe Sandbox
+# VendorIQ — E-commerce Backend
 
 VendorIQ is a deterministic, high-performance e-commerce REST API built with **Python 3.13+**, **FastAPI**, **PostgreSQL**, **SQLAlchemy 2.0 (async)**, **Alembic**, and **Stripe-hosted Checkout** (sandbox test mode).
 
