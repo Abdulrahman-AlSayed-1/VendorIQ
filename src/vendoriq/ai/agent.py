@@ -85,7 +85,7 @@ class SessionManager:
         config = GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
             tools=tool_callables,
-            temperature=0.7,
+            temperature=settings.GEMINI_TEMPERATURE,
         )
 
         chat = client.aio.chats.create(

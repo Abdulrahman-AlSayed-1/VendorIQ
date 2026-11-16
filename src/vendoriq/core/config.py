@@ -1,9 +1,18 @@
-from pydantic import field_validator
+from pathlib import Path
+
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Always locate .env relative to project root regardless of current working directory
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+ENV_FILE = BASE_DIR / ".env"
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "VendorIQ API"
+    APP_NAME: str = Field(
+        default="VendorIQ API",
+        validation_alias=AliasChoices("APP_NAME", "PROJECT_NAME"),
+    )
     APP_ENV: str = "development"
     DEBUG: bool = True
     VERSION: str = "0.1.0"
@@ -33,6 +42,7 @@ class Settings(BaseSettings):
     # AI Agent / Gemini & WhatsApp Bot
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_TEMPERATURE: float = 0.7
     AI_SESSION_TTL_MINUTES: int = 60
     AI_SESSION_MAX_TURNS: int = 20
     WHATSAPP_SESSION_NAME: str = "vendoriq_whatsapp.db"
@@ -56,9 +66,9 @@ class Settings(BaseSettings):
         return v
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE) if ENV_FILE.exists() else ".env",
         env_file_encoding="utf-8",
-        case_sensitive=True,
+        case_sensitive=False,
         extra="ignore",
     )
 
