@@ -56,7 +56,6 @@ class PaymentService:
 
         try:
             session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
                 mode="payment",
                 customer_email=customer_email,
                 client_reference_id=str(order.id),
