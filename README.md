@@ -99,6 +99,22 @@ uv run uvicorn vendoriq.main:app --reload --port 8000
 * Redoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 * Health Check: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 
+### 3.8 WhatsApp AI Shopping Agent Bot (Optional / Standalone)
+Run the AI shopping assistant on WhatsApp powered by **Google Gemini** and **neonize**:
+```bash
+# Set your Gemini API key in .env
+GEMINI_API_KEY="your-gemini-api-key"
+GEMINI_MODEL="gemini-2.0-flash"
+
+# Start the bot (scans QR code on first terminal launch)
+uv run vendoriq-bot
+# or: uv run python -m vendoriq.ai.bot
+```
+The WhatsApp bot features:
+* **Frictionless Onboarding**: Automatically provisions customer identity mapped to the incoming WhatsApp phone number.
+* **Full Toolset**: Search products, view item details, manage cart, generate Stripe checkout sessions, and check order statuses.
+* **In-Memory Memory**: Sliding window chat turns with configurable TTL.
+
 ---
 
 ## 4. Testing & Code Quality

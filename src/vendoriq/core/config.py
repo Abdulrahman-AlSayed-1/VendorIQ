@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     STRIPE_CANCEL_URL: str = "http://localhost:3000/checkout/cancel"
     CHECKOUT_RESERVATION_MINUTES: int = 30
 
+    # AI Agent / Gemini & WhatsApp Bot
+    GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    AI_SESSION_TTL_MINUTES: int = 60
+    AI_SESSION_MAX_TURNS: int = 20
+    WHATSAPP_SESSION_NAME: str = "vendoriq_whatsapp.db"
+
     @property
     def PROJECT_NAME(self) -> str:
         return self.APP_NAME

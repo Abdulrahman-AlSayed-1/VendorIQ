@@ -78,5 +78,43 @@ class AuthService:
             expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
 
+    async def get_or_create_whatsapp_user(
+        self,
+        session: AsyncSession,
+        phone_number: str,
+        name: str | None = None,
+    ) -> User:
+        """Resolve or automatically create a customer mapped to a WhatsApp phone number."""
+        import secrets
+
+        clean_phone = "".join(ch for ch in phone_number if ch.isalnum() or ch == "+")
+        whatsapp_email = f"whatsapp_{clean_phone.replace('+', '')}@vendoriq.local"
+
+        stmt = select(User).where(User.email == whatsapp_email)
+        res = await session.execute(stmt)
+        user = res.scalar_one_or_none()
+        if user:
+            return user
+
+        display_name = (
+            name.strip()
+            if name and name.strip()
+            else f"WhatsApp Customer ({clean_phone})"
+        )
+        random_password = secrets.token_urlsafe(32)
+        hashed_pw = hash_password(random_password)
+
+        user = User(
+            name=display_name,
+            email=whatsapp_email,
+            password_hash=hashed_pw,
+            role=UserRole.CUSTOMER,
+            is_active=True,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
 
 auth_service = AuthService()

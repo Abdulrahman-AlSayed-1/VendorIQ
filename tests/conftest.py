@@ -57,6 +57,13 @@ async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
 
 
 @pytest.fixture
+def override_ai_session_maker(monkeypatch):
+    """Ensure AI tools and session manager use the in-memory test database."""
+    monkeypatch.setattr("vendoriq.ai.tools.async_session_maker", TestingSessionLocal)
+    monkeypatch.setattr("vendoriq.ai.agent.async_session_maker", TestingSessionLocal)
+
+
+@pytest.fixture
 async def regular_user(db_session: AsyncSession) -> User:
     """Create a verified customer test user."""
     user = User(

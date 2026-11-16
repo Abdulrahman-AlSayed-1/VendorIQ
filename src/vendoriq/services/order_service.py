@@ -77,6 +77,45 @@ class OrderService:
 
         return order
 
+    async def get_order_by_id_or_number(
+        self,
+        session: AsyncSession,
+        identifier: str,
+        user: User,
+    ) -> Order:
+        """Retrieve order by UUID or public order_number with IDOR scoping."""
+        parsed_uuid = None
+        try:
+            parsed_uuid = uuid.UUID(identifier)
+        except ValueError:
+            parsed_uuid = None
+
+        if parsed_uuid:
+            clause = Order.id == parsed_uuid
+        else:
+            clause = Order.order_number == identifier.strip()
+
+        stmt = (
+            select(Order)
+            .where(clause)
+            .options(selectinload(Order.items), selectinload(Order.payment))
+        )
+        order = (await session.execute(stmt)).scalar_one_or_none()
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Order '{identifier}' was not found.",
+            )
+
+        # IDOR barrier: Customer can only view their own order
+        if user.role != UserRole.ADMIN and order.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Order '{identifier}' was not found.",
+            )
+
+        return order
+
     async def cancel_customer_order(
         self,
         session: AsyncSession,
