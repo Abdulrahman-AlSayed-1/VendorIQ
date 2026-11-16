@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient
 
+from vendoriq.core.config import settings
+
 
 @pytest.mark.asyncio
 async def test_health_check(async_client: AsyncClient):
@@ -8,7 +10,7 @@ async def test_health_check(async_client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["project"] == "VendorIQ API"
+    assert data["project"] == settings.PROJECT_NAME
     assert data["database"] == "connected"
 
     # Compatibility route
