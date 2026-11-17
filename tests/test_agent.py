@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vendoriq.ai.agent import SessionManager
+from vendoriq.ai.bot import is_private_chat
 from vendoriq.ai.tools import CustomerTools
 from vendoriq.models.category import Category
 from vendoriq.models.product import Product
@@ -197,3 +198,51 @@ async def test_session_manager_lifecycle(
     cleaned = await mgr.cleanup_expired()
     assert cleaned == 1
     assert "+15551112233" not in mgr._sessions
+
+
+def test_is_private_chat_filter():
+    """Verify group chats and broadcasts are strictly ignored, and only direct private chats pass."""
+
+    def make_mock_message(is_group: bool, server: str, user: str = "123456789"):
+        chat_jid = MagicMock()
+        chat_jid.Server = server
+        chat_jid.User = user
+
+        source = MagicMock()
+        source.IsGroup = is_group
+        source.Chat = chat_jid
+
+        info = MagicMock()
+        info.MessageSource = source
+
+        msg = MagicMock()
+        msg.Info = info
+        return msg
+
+    # Direct 1-on-1 private chat -> ALLOW
+    assert (
+        is_private_chat(make_mock_message(is_group=False, server="s.whatsapp.net"))
+        is True
+    )
+    assert is_private_chat(make_mock_message(is_group=False, server="c.us")) is True
+
+    # Group chats -> IGNORE
+    assert is_private_chat(make_mock_message(is_group=True, server="g.us")) is False
+    assert (
+        is_private_chat(make_mock_message(is_group=True, server="s.whatsapp.net"))
+        is False
+    )
+    assert is_private_chat(make_mock_message(is_group=False, server="g.us")) is False
+
+    # Broadcast lists & Newsletters/Channels -> IGNORE
+    assert (
+        is_private_chat(make_mock_message(is_group=False, server="broadcast")) is False
+    )
+    assert (
+        is_private_chat(make_mock_message(is_group=False, server="newsletter")) is False
+    )
+
+    # Malformed messages without Info or MessageSource -> IGNORE
+    empty_msg = MagicMock()
+    empty_msg.Info = None
+    assert is_private_chat(empty_msg) is False

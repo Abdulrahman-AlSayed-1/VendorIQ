@@ -41,6 +41,30 @@ def get_async_loop() -> asyncio.AbstractEventLoop:
     return _async_loop
 
 
+def is_private_chat(message: MessageEv) -> bool:
+    """Return True if the incoming message is a 1-on-1 private direct chat (including self-chat).
+
+    Excludes group chats, broadcast lists, and newsletter/channel updates.
+    """
+    info = getattr(message, "Info", None)
+    if info is None:
+        return False
+
+    source = getattr(info, "MessageSource", None)
+    if source is None:
+        return False
+
+    if getattr(source, "IsGroup", False):
+        return False
+
+    chat_jid = getattr(source, "Chat", None)
+    if chat_jid is None:
+        return False
+
+    server = getattr(chat_jid, "Server", "")
+    return server not in ("g.us", "broadcast", "newsletter")
+
+
 def build_whatsapp_bot(session_name: str | None = None) -> NewClient:
     db_name = session_name or settings.WHATSAPP_SESSION_NAME
     client = NewClient(db_name)
@@ -55,43 +79,22 @@ def build_whatsapp_bot(session_name: str | None = None) -> NewClient:
 
     @client.event(MessageEv)
     def on_message(bot_client: NewClient, message: MessageEv) -> None:
-        # 1. Ignore group chats completely
-        if getattr(message.Info.MessageSource, "IsGroup", False):
+        # Ignore group chats, broadcast channels, and status updates — only reply to private 1-on-1 chats
+        if not is_private_chat(message):
             return
 
         chat_jid = message.Info.MessageSource.Chat
-        sender_jid = getattr(message.Info.MessageSource, "Sender", None)
-        sender_phone = (
-            getattr(sender_jid, "User", "")
-            if sender_jid
-            else getattr(chat_jid, "User", "unknown")
+        sender_phone = message.Info.MessageSource.Sender.User or getattr(
+            chat_jid, "User", "unknown"
         )
         chat_user = getattr(chat_jid, "User", "")
-        is_from_me = bool(message.Info.MessageSource.IsFromMe)
+        is_self_chat = sender_phone == chat_user
 
-        # In WhatsApp, "Message Yourself" has IsFromMe=True and sender == chat JID
-        is_self_chat = is_from_me and (sender_phone == chat_user)
-
-        # 2. Ignore outgoing messages you send to external contacts (normal chatting)
-        if is_from_me and not is_self_chat:
+        # Ignore outgoing messages sent to others, but allow "Message Yourself"
+        if message.Info.MessageSource.IsFromMe and not is_self_chat:
             return
 
-        # 3. Privacy Guard for Testing: Only respond to "Message Yourself" if enabled
-        if settings.WHATSAPP_SELF_CHAT_ONLY and not is_self_chat:
-            return
-
-        # 4. Optional Phone Whitelist check
-        if settings.WHATSAPP_ALLOWED_PHONES:
-            allowed = [
-                p.strip().lstrip("+")
-                for p in settings.WHATSAPP_ALLOWED_PHONES.split(",")
-                if p.strip()
-            ]
-            clean_sender = sender_phone.lstrip("+")
-            if not is_self_chat and clean_sender not in allowed:
-                return
-
-        # 5. Prevent bot echo loops if message was sent by the bot itself
+        # Prevent bot echo loops if message was sent by the bot itself
         msg_id = getattr(message.Info, "ID", "")
         if msg_id and msg_id in _sent_message_ids:
             return
