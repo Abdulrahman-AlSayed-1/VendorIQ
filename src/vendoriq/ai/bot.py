@@ -3,6 +3,7 @@ import logging
 import signal
 import sys
 import threading
+import time
 
 from neonize.client import NewClient
 from neonize.events import ConnectedEv, MessageEv, PairStatusEv
@@ -20,6 +21,10 @@ logger = logging.getLogger("vendoriq.whatsapp")
 # Dedicated asyncio background loop for running agent tasks and DB queries
 _async_loop: asyncio.AbstractEventLoop | None = None
 _loop_thread: threading.Thread | None = None
+
+# Track messages sent by the bot to prevent echo loops when testing via "Message Yourself"
+_sent_message_ids: set[str] = set()
+_recent_sent_texts: dict[str, float] = {}
 
 
 def get_async_loop() -> asyncio.AbstractEventLoop:
@@ -50,24 +55,41 @@ def build_whatsapp_bot(session_name: str | None = None) -> NewClient:
 
     @client.event(MessageEv)
     def on_message(bot_client: NewClient, message: MessageEv) -> None:
-        # Ignore messages sent by the bot itself
-        if message.Info.MessageSource.IsFromMe:
+        chat_jid = message.Info.MessageSource.Chat
+        sender_phone = message.Info.MessageSource.Sender.User or getattr(
+            chat_jid, "User", "unknown"
+        )
+        chat_user = getattr(chat_jid, "User", "")
+        is_self_chat = sender_phone == chat_user
+
+        # Ignore outgoing messages sent to others, but allow "Message Yourself"
+        if message.Info.MessageSource.IsFromMe and not is_self_chat:
+            return
+
+        # Prevent bot echo loops if message was sent by the bot itself
+        msg_id = getattr(message.Info, "ID", "")
+        if msg_id and msg_id in _sent_message_ids:
             return
 
         text = extract_text(message.Message)
         if not text or not text.strip():
             return
 
-        chat_jid = message.Info.MessageSource.Chat
-        sender_phone = message.Info.MessageSource.Sender.User or getattr(
-            chat_jid, "User", "unknown"
-        )
+        # Double guard: skip if text matches a response the bot recently sent
+        clean_text = text.strip()
+        now = time.time()
+        if clean_text in _recent_sent_texts and (
+            now - _recent_sent_texts[clean_text] < 60
+        ):
+            return
+
         push_name = getattr(message.Info, "Pushname", None)
 
         logger.info(
-            "📩 Incoming message from %s (%s): %s",
+            "📩 Incoming message from %s (%s) [self_chat=%s]: %s",
             sender_phone,
             push_name or "Anonymous",
+            is_self_chat,
             text[:50],
         )
 
@@ -78,7 +100,23 @@ def build_whatsapp_bot(session_name: str | None = None) -> NewClient:
                     text=text,
                     push_name=push_name,
                 )
-                bot_client.send_message(to=chat_jid, message=response)
+
+                # Record sent text and timestamp to prevent self-chat loops
+                sent_time = time.time()
+                _recent_sent_texts[response.strip()] = sent_time
+                # Prune old cache entries (> 120s)
+                old_keys = [
+                    k for k, t in _recent_sent_texts.items() if sent_time - t > 120
+                ]
+                for k in old_keys:
+                    _recent_sent_texts.pop(k, None)
+
+                send_resp = bot_client.send_message(to=chat_jid, message=response)
+                if send_resp and getattr(send_resp, "ID", None):
+                    _sent_message_ids.add(send_resp.ID)
+                    if len(_sent_message_ids) > 500:
+                        _sent_message_ids.pop()
+
                 logger.info(
                     "📤 Sent response to %s (%d chars)", sender_phone, len(response)
                 )
