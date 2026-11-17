@@ -88,7 +88,7 @@ class AuthService:
         import secrets
 
         clean_phone = "".join(ch for ch in phone_number if ch.isalnum() or ch == "+")
-        whatsapp_email = f"whatsapp_{clean_phone.replace('+', '')}@vendoriq.local"
+        whatsapp_email = f"whatsapp_{clean_phone.replace('+', '')}@vendoriq.com"
 
         stmt = select(User).where(User.email == whatsapp_email)
         res = await session.execute(stmt)

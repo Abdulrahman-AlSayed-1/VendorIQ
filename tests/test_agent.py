@@ -26,7 +26,7 @@ async def test_get_or_create_whatsapp_user(
         name="Alice WhatsApp",
     )
     assert user1.id is not None
-    assert user1.email == "whatsapp_15550192834@vendoriq.local"
+    assert user1.email == "whatsapp_15550192834@vendoriq.com"
     assert user1.role == UserRole.CUSTOMER
     assert user1.name == "Alice WhatsApp"
 

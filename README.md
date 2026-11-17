@@ -82,8 +82,8 @@ Execute the idempotent seed script to populate sample categories, products, stoc
 ```bash
 uv run python -m vendoriq.scripts.seed
 ```
-* **Default Admin**: `admin@vendoriq.local` / `AdminSecure123!`
-* **Default Customer**: `customer@vendoriq.local` / `CustomerPass123!`
+* **Default Admin**: `admin@vendoriq.com` / `AdminSecure123!`
+* **Default Customer**: `customer@vendoriq.com` / `CustomerPass123!`
 
 ### 3.6 Periodic Reservation Reconciler (Optional / Cron)
 Release abandoned checkout reservations older than 30 minutes:

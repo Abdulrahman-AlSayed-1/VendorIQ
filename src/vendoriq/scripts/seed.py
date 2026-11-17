@@ -19,7 +19,7 @@ async def seed_database() -> None:
 
     async with async_session_maker() as session:
         # 1. Seed Default Admin User
-        admin_email = "admin@vendoriq.local"
+        admin_email = "admin@vendoriq.com"
         existing_admin = (
             await session.execute(select(User).where(User.email == admin_email))
         ).scalar_one_or_none()
@@ -38,7 +38,7 @@ async def seed_database() -> None:
             logger.info("Admin user %s already exists, skipping.", admin_email)
 
         # 2. Seed Default Customer User
-        customer_email = "customer@vendoriq.local"
+        customer_email = "customer@vendoriq.com"
         existing_cust = (
             await session.execute(select(User).where(User.email == customer_email))
         ).scalar_one_or_none()
