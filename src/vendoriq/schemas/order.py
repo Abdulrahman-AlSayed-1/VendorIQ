@@ -32,6 +32,7 @@ class OrderRead(BaseModel):
     discount: Decimal
     total: Decimal
     expires_at: datetime
+    whatsapp_notified_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     items: list[OrderItemRead] = Field(default_factory=list)

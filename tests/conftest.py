@@ -58,9 +58,11 @@ async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
 
 @pytest.fixture
 def override_ai_session_maker(monkeypatch):
-    """Ensure AI tools and session manager use the in-memory test database."""
+    """Ensure AI tools, session manager, and bot use the in-memory test database."""
     monkeypatch.setattr("vendoriq.ai.tools.async_session_maker", TestingSessionLocal)
     monkeypatch.setattr("vendoriq.ai.agent.async_session_maker", TestingSessionLocal)
+    monkeypatch.setattr("vendoriq.ai.bot.async_session_maker", TestingSessionLocal)
+    return TestingSessionLocal
 
 
 @pytest.fixture

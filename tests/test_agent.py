@@ -7,9 +7,10 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vendoriq.ai.agent import SessionManager
-from vendoriq.ai.bot import is_private_chat
+from vendoriq.ai.bot import check_and_notify_paid_orders, is_private_chat
 from vendoriq.ai.tools import CustomerTools
 from vendoriq.models.category import Category
+from vendoriq.models.order import Order, OrderItem, OrderStatus
 from vendoriq.models.product import Product
 from vendoriq.models.user import User, UserRole
 from vendoriq.services.auth_service import auth_service
@@ -246,3 +247,73 @@ def test_is_private_chat_filter():
     empty_msg = MagicMock()
     empty_msg.Info = None
     assert is_private_chat(empty_msg) is False
+
+
+@pytest.mark.asyncio
+async def test_proactive_order_confirmation(
+    db_session: AsyncSession, override_ai_session_maker
+):
+    """Verify newly paid orders trigger a single proactive confirmation and update whatsapp_notified_at."""
+    # 1. Create a WhatsApp user
+    wa_user = await auth_service.get_or_create_whatsapp_user(
+        session=db_session,
+        phone_number="+15559876543",
+        name="Charlie Test",
+    )
+
+    # 2. Create a PAID order without notification timestamp
+    order = Order(
+        id=uuid.uuid4(),
+        order_number="ORD-20261117-TEST01",
+        user_id=wa_user.id,
+        status=OrderStatus.PAID,
+        currency="usd",
+        subtotal=Decimal("120.00"),
+        discount=Decimal("0.00"),
+        total=Decimal("120.00"),
+        expires_at=datetime.now(UTC) + timedelta(minutes=30),
+        whatsapp_notified_at=None,
+    )
+    db_session.add(order)
+    await db_session.flush()
+
+    item = OrderItem(
+        id=uuid.uuid4(),
+        order_id=order.id,
+        product_name_snapshot="Mechanical Keyboard",
+        sku_snapshot="KB-001",
+        unit_price_snapshot=Decimal("120.00"),
+        quantity=1,
+        line_total=Decimal("120.00"),
+    )
+    db_session.add(item)
+    await db_session.commit()
+
+    # 3. Mock WhatsApp bot client
+    mock_bot = MagicMock()
+    mock_bot.send_message.return_value = MagicMock(ID="msg_test_123")
+
+    # 4. Run check_and_notify_paid_orders
+    notified_count = await check_and_notify_paid_orders(
+        bot_client=mock_bot,
+        session_factory=override_ai_session_maker,
+    )
+    assert notified_count == 1
+    mock_bot.send_message.assert_called_once()
+    call_args = mock_bot.send_message.call_args[1]
+    assert "ORD-20261117-TEST01" in call_args["message"]
+    assert "Mechanical Keyboard" in call_args["message"]
+    assert "120.00" in call_args["message"]
+
+    # Refresh order and check whatsapp_notified_at is populated
+    await db_session.refresh(order)
+    assert order.whatsapp_notified_at is not None
+
+    # 5. Subsequent run should NOT resend (Idempotent)
+    mock_bot.send_message.reset_mock()
+    second_run = await check_and_notify_paid_orders(
+        bot_client=mock_bot,
+        session_factory=override_ai_session_maker,
+    )
+    assert second_run == 0
+    mock_bot.send_message.assert_not_called()
