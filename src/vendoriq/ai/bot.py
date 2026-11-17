@@ -55,18 +55,43 @@ def build_whatsapp_bot(session_name: str | None = None) -> NewClient:
 
     @client.event(MessageEv)
     def on_message(bot_client: NewClient, message: MessageEv) -> None:
-        chat_jid = message.Info.MessageSource.Chat
-        sender_phone = message.Info.MessageSource.Sender.User or getattr(
-            chat_jid, "User", "unknown"
-        )
-        chat_user = getattr(chat_jid, "User", "")
-        is_self_chat = sender_phone == chat_user
-
-        # Ignore outgoing messages sent to others, but allow "Message Yourself"
-        if message.Info.MessageSource.IsFromMe and not is_self_chat:
+        # 1. Ignore group chats completely
+        if getattr(message.Info.MessageSource, "IsGroup", False):
             return
 
-        # Prevent bot echo loops if message was sent by the bot itself
+        chat_jid = message.Info.MessageSource.Chat
+        sender_jid = getattr(message.Info.MessageSource, "Sender", None)
+        sender_phone = (
+            getattr(sender_jid, "User", "")
+            if sender_jid
+            else getattr(chat_jid, "User", "unknown")
+        )
+        chat_user = getattr(chat_jid, "User", "")
+        is_from_me = bool(message.Info.MessageSource.IsFromMe)
+
+        # In WhatsApp, "Message Yourself" has IsFromMe=True and sender == chat JID
+        is_self_chat = is_from_me and (sender_phone == chat_user)
+
+        # 2. Ignore outgoing messages you send to external contacts (normal chatting)
+        if is_from_me and not is_self_chat:
+            return
+
+        # 3. Privacy Guard for Testing: Only respond to "Message Yourself" if enabled
+        if settings.WHATSAPP_SELF_CHAT_ONLY and not is_self_chat:
+            return
+
+        # 4. Optional Phone Whitelist check
+        if settings.WHATSAPP_ALLOWED_PHONES:
+            allowed = [
+                p.strip().lstrip("+")
+                for p in settings.WHATSAPP_ALLOWED_PHONES.split(",")
+                if p.strip()
+            ]
+            clean_sender = sender_phone.lstrip("+")
+            if not is_self_chat and clean_sender not in allowed:
+                return
+
+        # 5. Prevent bot echo loops if message was sent by the bot itself
         msg_id = getattr(message.Info, "ID", "")
         if msg_id and msg_id in _sent_message_ids:
             return

@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     AI_SESSION_TTL_MINUTES: int = 60
     AI_SESSION_MAX_TURNS: int = 20
     WHATSAPP_SESSION_NAME: str = "vendoriq_whatsapp.db"
+    WHATSAPP_SELF_CHAT_ONLY: bool = True
+    WHATSAPP_ALLOWED_PHONES: str = ""
 
     @property
     def PROJECT_NAME(self) -> str:
