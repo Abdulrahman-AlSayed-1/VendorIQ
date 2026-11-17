@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import select
 
@@ -99,7 +100,7 @@ async def seed_database() -> None:
         await session.flush()
 
         # 4. Seed Sample Products
-        products_data = [
+        products_data: list[dict[str, Any]] = [
             {
                 "category_slug": "audio",
                 "name": "VendorIQ Wireless ANC Headphones",
@@ -195,7 +196,7 @@ async def seed_database() -> None:
             ).scalar_one_or_none()
 
             if not existing_prod:
-                category = cats_by_slug.get(prod_info["category_slug"])
+                category = cats_by_slug.get(str(prod_info["category_slug"]))
                 prod = Product(
                     category_id=category.id if category else None,
                     name=prod_info["name"],
