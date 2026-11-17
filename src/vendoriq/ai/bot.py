@@ -4,6 +4,7 @@ import signal
 import sys
 import threading
 import time
+from concurrent.futures import Future
 from datetime import UTC, datetime
 from typing import Any
 
@@ -34,7 +35,7 @@ _sent_message_ids: set[str] = set()
 _recent_sent_texts: dict[str, float] = {}
 # Cache known JID objects by user/phone identifier for accurate proactive delivery
 _user_jids: dict[str, Any] = {}
-_notification_task: asyncio.Task[None] | None = None
+_notification_task: Future[None] | None = None
 
 
 def get_async_loop() -> asyncio.AbstractEventLoop:
