@@ -17,11 +17,19 @@ class WebhookService:
     async def process_stripe_event(
         self,
         session: AsyncSession,
-        event: dict[str, Any],
+        event: dict[str, Any] | Any,
     ) -> dict[str, str]:
-        event_id = event["id"]
-        event_type = event["type"]
-        data_object = event.get("data", {}).get("object", {})
+        # Normalize Stripe Event object to standard dictionary
+        if hasattr(event, "to_dict"):
+            event_dict: dict[str, Any] = event.to_dict()
+        elif isinstance(event, dict):
+            event_dict = event
+        else:
+            event_dict = dict(event)
+
+        event_id = event_dict["id"]
+        event_type = event_dict["type"]
+        data_object = event_dict.get("data", {}).get("object", {})
 
         # 1. Idempotency Check: Query event ledger
         stmt = select(StripeWebhookEvent).where(
@@ -40,7 +48,7 @@ class WebhookService:
                 stripe_event_id=event_id,
                 event_type=event_type,
                 processing_status=WebhookEventStatus.PENDING,
-                payload=event,
+                payload=event_dict,
             )
             session.add(webhook_record)
             await session.commit()
