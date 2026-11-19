@@ -1,9 +1,9 @@
 from decimal import Decimal
-from typing import Any
 
 import stripe
 from fastapi import HTTPException, status
 from stripe import StripeError
+from stripe.params.checkout import SessionCreateParamsLineItem
 
 from vendoriq.core.config import settings
 from vendoriq.models.order import Order
@@ -29,7 +29,7 @@ class PaymentService:
         stripe.api_key = settings.STRIPE_SECRET_KEY
 
         # Construct itemized line items
-        line_items: list[dict[str, Any]] = []
+        line_items: list[SessionCreateParamsLineItem] = []
         for item in order.items:
             unit_amount_cents = self.decimal_to_cents(item.unit_price_snapshot)
             line_items.append(
