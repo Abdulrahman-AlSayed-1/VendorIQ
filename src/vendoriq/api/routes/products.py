@@ -86,6 +86,7 @@ async def get_product(
     session: SessionDep,
 ) -> ProductRead:
     """Retrieve details for a single product identified by UUID or slug."""
-    return await product_service.get_product_by_id_or_slug(
+    product = await product_service.get_product_by_id_or_slug(
         session=session, id_or_slug=id_or_slug, include_inactive=False
     )
+    return ProductRead.model_validate(product)

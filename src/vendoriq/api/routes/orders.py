@@ -56,9 +56,10 @@ async def get_customer_order(
     session: SessionDep,
 ) -> OrderRead:
     """Retrieve detailed order information including immutable item snapshots (IDOR protected)."""
-    return await order_service.get_order_by_id(
+    order = await order_service.get_order_by_id(
         session=session, order_id=order_id, user=current_user
     )
+    return OrderRead.model_validate(order)
 
 
 @router.post(

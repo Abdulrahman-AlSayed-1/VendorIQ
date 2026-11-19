@@ -15,7 +15,8 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 )
 async def list_categories(session: SessionDep) -> list[CategoryRead]:
     """Retrieve all active product categories ordered alphabetically."""
-    return await product_service.get_categories(session=session)
+    categories = await product_service.get_categories(session=session)
+    return [CategoryRead.model_validate(c) for c in categories]
 
 
 @router.get(
@@ -26,6 +27,7 @@ async def list_categories(session: SessionDep) -> list[CategoryRead]:
 )
 async def get_category(id_or_slug: str, session: SessionDep) -> CategoryRead:
     """Retrieve details for a single category identified by UUID or slug."""
-    return await product_service.get_category_by_id_or_slug(
+    category = await product_service.get_category_by_id_or_slug(
         session=session, id_or_slug=id_or_slug
     )
+    return CategoryRead.model_validate(category)

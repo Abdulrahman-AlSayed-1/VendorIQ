@@ -38,7 +38,8 @@ async def create_category(
     session: SessionDep,
     _admin: CurrentAdminDep,
 ) -> CategoryRead:
-    return await product_service.create_category(session=session, data=data)
+    category = await product_service.create_category(session=session, data=data)
+    return CategoryRead.model_validate(category)
 
 
 @router.patch(
@@ -53,9 +54,10 @@ async def update_category(
     session: SessionDep,
     _admin: CurrentAdminDep,
 ) -> CategoryRead:
-    return await product_service.update_category(
+    category = await product_service.update_category(
         session=session, category_id=category_id, data=data
     )
+    return CategoryRead.model_validate(category)
 
 
 # -----------------------------------------------------------------------------
@@ -72,7 +74,8 @@ async def create_product(
     session: SessionDep,
     _admin: CurrentAdminDep,
 ) -> ProductRead:
-    return await product_service.create_product(session=session, data=data)
+    product = await product_service.create_product(session=session, data=data)
+    return ProductRead.model_validate(product)
 
 
 @router.patch(
@@ -87,9 +90,10 @@ async def update_product(
     session: SessionDep,
     _admin: CurrentAdminDep,
 ) -> ProductRead:
-    return await product_service.update_product(
+    product = await product_service.update_product(
         session=session, product_id=product_id, data=data
     )
+    return ProductRead.model_validate(product)
 
 
 @router.patch(
@@ -104,9 +108,10 @@ async def update_product_stock(
     session: SessionDep,
     _admin: CurrentAdminDep,
 ) -> ProductRead:
-    return await product_service.update_product_stock(
+    product = await product_service.update_product_stock(
         session=session, product_id=product_id, new_stock=data.stock
     )
+    return ProductRead.model_validate(product)
 
 
 @router.delete(
@@ -121,9 +126,10 @@ async def deactivate_product(
     _admin: CurrentAdminDep,
 ) -> ProductRead:
     """Soft-deactivate product. The product is never physically deleted to preserve historical order integrity."""
-    return await product_service.deactivate_product(
+    product = await product_service.deactivate_product(
         session=session, product_id=product_id
     )
+    return ProductRead.model_validate(product)
 
 
 # -----------------------------------------------------------------------------
@@ -172,9 +178,10 @@ async def update_order_status_admin(
     session: SessionDep,
     _admin: CurrentAdminDep,
 ) -> OrderRead:
-    return await order_service.update_order_status_admin(
+    order = await order_service.update_order_status_admin(
         session=session, order_id=order_id, new_status=data.status
     )
+    return OrderRead.model_validate(order)
 
 
 @router.post(
