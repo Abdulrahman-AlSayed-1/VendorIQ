@@ -35,10 +35,10 @@ async def list_products(
     ] = None,
     brand: Annotated[str | None, Query(description="Filter by product brand")] = None,
     min_price: Annotated[
-        Decimal | None, Query(ge=0, description="Minimum unit price")
+        Decimal | None, Query(ge=Decimal("0.00"), description="Minimum unit price")
     ] = None,
     max_price: Annotated[
-        Decimal | None, Query(ge=0, description="Maximum unit price")
+        Decimal | None, Query(ge=Decimal("0.00"), description="Maximum unit price")
     ] = None,
     in_stock: Annotated[
         bool | None,

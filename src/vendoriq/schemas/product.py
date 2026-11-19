@@ -12,7 +12,7 @@ class ProductBase(BaseModel):
     sku: str = Field(..., min_length=2, max_length=100)
     description: str | None = None
     brand: str | None = None
-    price: Decimal = Field(..., ge=0, decimal_places=2)
+    price: Decimal = Field(..., ge=Decimal("0.00"), decimal_places=2)
     currency: str = Field("usd", min_length=3, max_length=3)
     stock: int = Field(0, ge=0)
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -30,7 +30,7 @@ class ProductUpdate(BaseModel):
     sku: str | None = Field(None, min_length=2, max_length=100)
     description: str | None = None
     brand: str | None = None
-    price: Decimal | None = Field(None, ge=0, decimal_places=2)
+    price: Decimal | None = Field(None, ge=Decimal("0.00"), decimal_places=2)
     currency: str | None = Field(None, min_length=3, max_length=3)
     stock: int | None = Field(None, ge=0)
     attributes: dict[str, Any] | None = None
