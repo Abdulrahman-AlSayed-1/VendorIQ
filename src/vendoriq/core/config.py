@@ -41,7 +41,8 @@ class Settings(BaseSettings):
 
     # AI Agent / Gemini & WhatsApp Bot
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-4-hydrogen"
+    GEMINI_FALLBACK_MODEL: str = "gemini-2.0-flash"
     GEMINI_TEMPERATURE: float = 0.2
     AI_SESSION_TTL_MINUTES: int = 60
     AI_SESSION_MAX_TURNS: int = 20

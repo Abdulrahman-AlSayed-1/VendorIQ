@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -199,6 +199,51 @@ async def test_session_manager_lifecycle(
     cleaned = await mgr.cleanup_expired()
     assert cleaned == 1
     assert "+15551112233" not in mgr._sessions
+
+
+@pytest.mark.asyncio
+async def test_gemini_model_fallback_on_error(
+    db_session: AsyncSession, monkeypatch, override_ai_session_maker
+):
+    """Verify that when the primary model fails, the session manager automatically switches to the fallback model."""
+    mgr = SessionManager()
+
+    primary_chat = MagicMock()
+    # Simulate primary model rate limit / overload failure
+    primary_chat.send_message = AsyncMock(
+        side_effect=Exception(
+            "429 ResourceExhausted: Model overloaded or quota exceeded"
+        )
+    )
+
+    fallback_chat = MagicMock()
+    fallback_resp = MagicMock()
+    fallback_resp.text = "Hello! I am ready to help you shop."
+    fallback_chat.send_message = AsyncMock(return_value=fallback_resp)
+
+    async def mock_init_chat(user, model_name=None):
+        if model_name == "gemini-2.0-flash":
+            return CustomerTools(user), fallback_chat, "gemini-2.0-flash"
+        return CustomerTools(user), primary_chat, "gemini-4-hydrogen"
+
+    monkeypatch.setattr(mgr, "_init_chat", mock_init_chat)
+
+    response_text = await mgr.process_message(
+        phone_number="+15554443322",
+        text="Find me a mechanical keyboard",
+    )
+
+    # 1. User gets the successful response from fallback model
+    assert response_text == "Hello! I am ready to help you shop."
+
+    # 2. Verify primary model was tried, failed, and fallback model was called
+    primary_chat.send_message.assert_called_once_with("Find me a mechanical keyboard")
+    fallback_chat.send_message.assert_called_once_with("Find me a mechanical keyboard")
+
+    # 3. Session now points to the fallback model
+    session = mgr._sessions["+15554443322"]
+    assert session.current_model == "gemini-2.0-flash"
+    assert session.turn_count == 1
 
 
 def test_is_private_chat_filter():

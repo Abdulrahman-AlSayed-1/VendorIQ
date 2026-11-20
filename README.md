@@ -18,6 +18,7 @@ VendorIQ is a deterministic, high-performance e-commerce REST API and autonomous
 
 ### WhatsApp AI Shopping Agent
 - **Powered by Google Gemini**: Built with `google-genai` and `neonize` multi-device client.
+- **Dual-Model Resiliency**: Uses high-speed **Gemini 4 Hydrogen** as the primary workhorse model with automatic, zero-downtime fallback to **Gemini 2.0 Flash** on rate-limits or temporary outages.
 - **Zero-Friction Customer Onboarding**: Automatically maps incoming WhatsApp phone numbers to authenticated customer records in PostgreSQL without manual sign-up.
 - **Autonomous Toolset**: The agent executes real business logic through domain tools:
   - Catalog browsing and semantic/keyword product search.
@@ -88,7 +89,8 @@ CHECKOUT_RESERVATION_MINUTES=30
 
 # AI Shopping Assistant (Google Gemini & WhatsApp)
 GEMINI_API_KEY="your-gemini-api-key"
-GEMINI_MODEL="gemini-2.0-flash"
+GEMINI_MODEL="gemini-4-hydrogen"
+GEMINI_FALLBACK_MODEL="gemini-2.0-flash"
 GEMINI_TEMPERATURE=0.2
 AI_SESSION_TTL_MINUTES=60
 AI_SESSION_MAX_TURNS=20

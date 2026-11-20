@@ -51,6 +51,7 @@ class ChatSession:
     chat: AsyncChat
     last_active_at: datetime
     turn_count: int = 0
+    current_model: str = ""
 
 
 class SessionManager:
@@ -75,12 +76,14 @@ class SessionManager:
         ttl = timedelta(minutes=settings.AI_SESSION_TTL_MINUTES)
         return datetime.now(UTC) - session.last_active_at > ttl
 
-    async def _init_chat(self, user: User) -> tuple[CustomerTools, AsyncChat]:
+    async def _init_chat(
+        self, user: User, model_name: str | None = None
+    ) -> tuple[CustomerTools, AsyncChat, str]:
         client = self._get_client()
         tools_instance = CustomerTools(user=user)
         tool_callables = tools_instance.get_tool_callables()
 
-        model_name = settings.GEMINI_MODEL or "gemini-2.0-flash"
+        chosen_model = model_name or settings.GEMINI_MODEL or "gemini-4-hydrogen"
 
         config = GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
@@ -89,10 +92,10 @@ class SessionManager:
         )
 
         chat = client.aio.chats.create(
-            model=model_name,
+            model=chosen_model,
             config=config,
         )
-        return tools_instance, chat
+        return tools_instance, chat, chosen_model
 
     async def get_or_create_session(
         self, phone_number: str, push_name: str | None = None
@@ -121,7 +124,13 @@ class SessionManager:
                     name=push_name,
                 )
 
-            tools_instance, chat = await self._init_chat(user)
+            init_res = await self._init_chat(user)
+            if len(init_res) == 3:
+                tools_instance, chat, chosen_model = init_res
+            else:
+                tools_instance, chat = init_res[0], init_res[1]
+                chosen_model = settings.GEMINI_MODEL
+
             session = ChatSession(
                 phone_number=phone_number,
                 user=user,
@@ -129,6 +138,7 @@ class SessionManager:
                 chat=chat,
                 last_active_at=datetime.now(UTC),
                 turn_count=0,
+                current_model=chosen_model,
             )
             self._sessions[phone_number] = session
             return session
@@ -139,7 +149,31 @@ class SessionManager:
         """Process an incoming WhatsApp message and return the agent's response."""
         try:
             session = await self.get_or_create_session(phone_number, push_name)
-            response = await session.chat.send_message(text)
+            try:
+                response = await session.chat.send_message(text)
+            except Exception as primary_err:
+                fallback_model = settings.GEMINI_FALLBACK_MODEL
+                if fallback_model and session.current_model != fallback_model:
+                    logger.warning(
+                        "Primary Gemini model '%s' failed for %s: %s. Switching to fallback model '%s'...",
+                        session.current_model,
+                        phone_number,
+                        primary_err,
+                        fallback_model,
+                    )
+                    init_res = await self._init_chat(
+                        session.user, model_name=fallback_model
+                    )
+                    if len(init_res) == 3:
+                        session.tools, session.chat, session.current_model = init_res
+                    else:
+                        session.tools, session.chat = init_res[0], init_res[1]
+                        session.current_model = fallback_model
+
+                    response = await session.chat.send_message(text)
+                else:
+                    raise
+
             session.turn_count += 1
             session.last_active_at = datetime.now(UTC)
 
