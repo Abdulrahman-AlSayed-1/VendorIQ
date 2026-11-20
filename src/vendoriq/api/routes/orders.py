@@ -74,6 +74,7 @@ async def cancel_customer_order(
     session: SessionDep,
 ) -> OrderRead:
     """Cancel a pending unpaid order, atomically releasing the reserved stock back to the catalog."""
-    return await order_service.cancel_customer_order(
+    order = await order_service.cancel_customer_order(
         session=session, order_id=order_id, user=current_user
     )
+    return OrderRead.model_validate(order)
